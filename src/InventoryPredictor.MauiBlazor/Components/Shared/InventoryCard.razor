@@ -1,0 +1,133 @@
+
+<!-- Components/Shared/InventoryCard.razor -->
+@code {
+    [Parameter] public InventoryItem Item { get; set; } = null!;
+    [Parameter] public EventCallback<InventoryItem> OnClick { get; set; }
+}
+
+<div class="inventory-card status-@Item.Status.ToString().ToLower()" @onclick="() => OnClick.InvokeAsync(Item)">
+    <div class="card-header">
+        <h4>@Item.ProductName</h4>
+        <span class="product-code">@Item.ProductCode</span>
+    </div>
+    
+    <div class="card-body">
+        <div class="stock-info">
+            <div class="stock-level">
+                <span class="label">Current Stock:</span>
+                <span class="value">@Item.CurrentStock @Item.Unit</span>
+            </div>
+            <div class="stock-level">
+                <span class="label">Min Stock:</span>
+                <span class="value">@Item.MinimumStock @Item.Unit</span>
+            </div>
+        </div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: @GetStockPercentage()%"></div>
+        </div>
+        
+        <div class="card-footer">
+            <span class="location">📍 @Item.Location.Replace("_", " ")</span>
+            <StockLevelIndicator Status="@Item.Status" />
+        </div>
+    </div>
+</div>
+
+@code {
+    private decimal GetStockPercentage()
+    {
+        if (Item.MinimumStock == 0) return 100;
+        var percentage = (Item.CurrentStock / Item.MinimumStock) * 100;
+        return Math.Min(Math.Max(percentage, 0), 100);
+    }
+}
+
+<style>
+    .inventory-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        border-left: 4px solid #28a745;
+    }
+
+    .inventory-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .inventory-card.status-low,
+    .inventory-card.status-criticallylow {
+        border-left-color: #ffc107;
+    }
+
+    .inventory-card.status-outofstock {
+        border-left-color: #dc3545;
+    }
+
+    .card-header {
+        margin-bottom: 1rem;
+    }
+
+    .card-header h4 {
+        margin: 0 0 0.25rem 0;
+        font-size: 1rem;
+    }
+
+    .product-code {
+        font-size: 0.75rem;
+        color: #666;
+    }
+
+    .stock-info {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .stock-level {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .stock-level .label {
+        font-size: 0.75rem;
+        color: #666;
+    }
+
+    .stock-level .value {
+        font-weight: bold;
+        font-size: 1rem;
+    }
+
+    .progress-bar {
+        height: 8px;
+        background: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 1rem;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #28a745, #20c997);
+        transition: width 0.3s;
+    }
+
+    .card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 0.75rem;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .location {
+        font-size: 0.75rem;
+        color: #666;
+    }
+</style>

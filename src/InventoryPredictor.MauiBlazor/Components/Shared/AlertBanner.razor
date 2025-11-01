@@ -1,0 +1,107 @@
+
+<!-- Components/Shared/AlertBanner.razor -->
+@code {
+    [Parameter] public string Severity { get; set; } = "Info";
+    [Parameter] public string Message { get; set; } = "";
+    [Parameter] public EventCallback OnViewClick { get; set; }
+    [Parameter] public EventCallback OnDismiss { get; set; }
+}
+
+<div class="alert-banner alert-@Severity.ToLower()">
+    <span class="alert-icon">@GetIcon()</span>
+    <div class="alert-content">
+        <p>@Message</p>
+    </div>
+    @if (OnViewClick.HasDelegate)
+    {
+        <button class="btn-alert-action" @onclick="OnViewClick">
+            View Details
+        </button>
+    }
+    @if (OnDismiss.HasDelegate)
+    {
+        <button class="btn-dismiss" @onclick="OnDismiss">×</button>
+    }
+</div>
+
+@code {
+    private string GetIcon()
+    {
+        return Severity.ToLower() switch
+        {
+            "critical" => "🚨",
+            "warning" => "⚠️",
+            "success" => "✅",
+            "info" => "ℹ️",
+            _ => "ℹ️"
+        };
+    }
+}
+
+<style>
+    .alert-banner {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .alert-critical {
+        background: #fff5f5;
+        border-left: 4px solid #dc3545;
+    }
+
+    .alert-warning {
+        background: #fff8e1;
+        border-left: 4px solid #ffc107;
+    }
+
+    .alert-success {
+        background: #f0fdf4;
+        border-left: 4px solid #28a745;
+    }
+
+    .alert-info {
+        background: #e7f3ff;
+        border-left: 4px solid #007bff;
+    }
+
+    .alert-icon {
+        font-size: 1.5rem;
+    }
+
+    .alert-content {
+        flex: 1;
+    }
+
+    .alert-content p {
+        margin: 0;
+        font-weight: 500;
+    }
+
+    .btn-alert-action {
+        padding: 0.5rem 1rem;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+    .btn-alert-action:hover {
+        background: #f8f9fa;
+    }
+
+    .btn-dismiss {
+        padding: 0 0.5rem;
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #666;
+    }
+</style>

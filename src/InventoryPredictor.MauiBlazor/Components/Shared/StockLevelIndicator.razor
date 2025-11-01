@@ -1,0 +1,92 @@
+
+<!-- Components/Shared/StockLevelIndicator.razor -->
+@code {
+    [Parameter] public StockStatus Status { get; set; }
+}
+
+<div class="stock-indicator status-@Status.ToString().ToLower()">
+    <span class="indicator-dot"></span>
+    <span class="indicator-text">@GetStatusText()</span>
+</div>
+
+@code {
+    private string GetStatusText()
+    {
+        return Status switch
+        {
+            StockStatus.OutOfStock => "Out of Stock",
+            StockStatus.CriticallyLow => "Critical",
+            StockStatus.Low => "Low",
+            StockStatus.Optimal => "Good",
+            StockStatus.High => "High",
+            StockStatus.Overstocked => "Overstock",
+            _ => "Unknown"
+        };
+    }
+}
+
+<style>
+    .stock-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .indicator-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+    }
+
+    .status-outofstock {
+        background: #fff5f5;
+        color: #dc3545;
+    }
+
+    .status-outofstock .indicator-dot {
+        background: #dc3545;
+    }
+
+    .status-criticallylow {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .status-criticallylow .indicator-dot {
+        background: #ffc107;
+    }
+
+    .status-low {
+        background: #fff8e1;
+        color: #ff9800;
+    }
+
+    .status-low .indicator-dot {
+        background: #ff9800;
+    }
+
+    .status-optimal {
+        background: #f0fdf4;
+        color: #28a745;
+    }
+
+    .status-optimal .indicator-dot {
+        background: #28a745;
+    }
+
+    .status-high,
+    .status-overstocked {
+        background: #e7f3ff;
+        color: #0066cc;
+    }
+
+    .status-high .indicator-dot,
+    .status-overstocked .indicator-dot {
+        background: #0066cc;
+    }
+</style>

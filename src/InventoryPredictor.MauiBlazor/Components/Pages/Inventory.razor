@@ -1,0 +1,613 @@
+@page "/inventory"
+@using InventoryPredictor.MauiBlazor.Services
+@using InventoryPredictor.Shared.Models
+@inject IInventoryService InventoryService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Inventory - Inventory Predictor</PageTitle>
+
+<div class="inventory-container">
+    <!-- Header -->
+    <div class="page-header">
+        <div class="header-content">
+            <h1>📦 Inventory Management</h1>
+            <p class="subtitle">Real-time stock levels across all locations</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn-secondary" @onclick="ExportData">
+                📥 Export
+            </button>
+            <button class="btn-primary" @onclick="OpenAddItemDialog">
+                ➕ Add Product
+            </button>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-section">
+        <div class="filter-group">
+            <label>📍 Location</label>
+            <select @bind="selectedLocation" @bind:after="FilterItems">
+                <option value="">All Locations</option>
+                <option value="Nairobi_Warehouse">Nairobi Warehouse</option>
+                <option value="Mombasa_Store">Mombasa Store</option>
+                <option value="Kisumu_Store">Kisumu Store</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label>📂 Category</label>
+            <select @bind="selectedCategory" @bind:after="FilterItems">
+                <option value="">All Categories</option>
+                <option value="Food">Food</option>
+                <option value="Beverages">Beverages</option>
+                <option value="Household">Household</option>
+                <option value="Dairy">Dairy</option>
+                <option value="Fresh Produce">Fresh Produce</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label>⚠️ Status</label>
+            <select @bind="selectedStatus" @bind:after="FilterItems">
+                <option value="">All Status</option>
+                <option value="OutOfStock">Out of Stock</option>
+                <option value="CriticallyLow">Critically Low</option>
+                <option value="Low">Low Stock</option>
+                <option value="Optimal">Optimal</option>
+                <option value="Overstocked">Overstocked</option>
+            </select>
+        </div>
+
+        <div class="filter-group search-box">
+            <label>🔍 Search</label>
+            <input type="text" 
+                   placeholder="Search products..." 
+                   @bind="searchQuery"
+                   @bind:event="oninput"
+                   @bind:after="FilterItems" />
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <LoadingSpinner Message="Loading inventory..." />
+    }
+    else
+    {
+        <!-- Summary Stats -->
+        <div class="stats-bar">
+            <div class="stat">
+                <span class="stat-label">Total Products:</span>
+                <span class="stat-value">@filteredItems.Count()</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Total Value:</span>
+                <span class="stat-value">KSh @filteredItems.Sum(i => i.StockValue).ToString("N0")</span>
+            </div>
+            <div class="stat critical">
+                <span class="stat-label">Low Stock:</span>
+                <span class="stat-value">@filteredItems.Count(i => i.Status == StockStatus.Low || i.Status == StockStatus.CriticallyLow)</span>
+            </div>
+            <div class="stat warning">
+                <span class="stat-label">Out of Stock:</span>
+                <span class="stat-value">@filteredItems.Count(i => i.Status == StockStatus.OutOfStock)</span>
+            </div>
+        </div>
+
+        <!-- Inventory Table -->
+        <div class="table-container">
+            <table class="inventory-table">
+                <thead>
+                    <tr>
+                        <th @onclick='() => SortBy("ProductCode")'>
+                            Product Code @GetSortIcon("ProductCode")
+                        </th>
+                        <th @onclick='() => SortBy("ProductName")'>
+                            Product Name @GetSortIcon("ProductName")
+                        </th>
+                        <th>Category</th>
+                        <th @onclick='() => SortBy("CurrentStock")'>
+                            Current Stock @GetSortIcon("CurrentStock")
+                        </th>
+                        <th>Min Stock</th>
+                        <th>Location</th>
+                        <th>Status</th>
+                        <th @onclick='() => SortBy("StockValue")'>
+                            Value @GetSortIcon("StockValue")
+                        </th>
+                        <th>Days Left</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in paginatedItems)
+                    {
+                        <tr class="status-@item.Status.ToString().ToLower()" @onclick="() => ViewDetails(item.Id)">
+                            <td><strong>@item.ProductCode</strong></td>
+                            <td>@item.ProductName</td>
+                            <td><span class="category-badge">@item.Category</span></td>
+                            <td>
+                                <div class="stock-cell">
+                                    <strong>@item.CurrentStock</strong>
+                                    <span class="unit">@item.Unit</span>
+                                </div>
+                            </td>
+                            <td>@item.MinimumStock @item.Unit</td>
+                            <td>
+                                <span class="location-tag">📍 @item.Location.Replace("_", " ")</span>
+                            </td>
+                            <td>
+                                <StockLevelIndicator Status="@item.Status" />
+                            </td>
+                            <td>KSh @item.StockValue.ToString("N0")</td>
+                            <td>
+                                @if (item.DaysOfStockRemaining > 0)
+                                {
+                                    <span class="days-left days-@GetDaysClass(item.DaysOfStockRemaining)">
+                                        @item.DaysOfStockRemaining days
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="days-left days-critical">-</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="btn-icon" @onclick:stopPropagation="true" 
+                                            @onclick="() => EditItem(item)" title="Edit">
+                                        ✏️
+                                    </button>
+                                    <button class="btn-icon" @onclick:stopPropagation="true" 
+                                            @onclick="() => AdjustStock(item)" title="Adjust Stock">
+                                        📊
+                                    </button>
+                                    <button class="btn-icon" @onclick:stopPropagation="true" 
+                                            @onclick="() => ViewHistory(item)" title="View History">
+                                        📜
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination">
+            <button class="btn-page" @onclick="PreviousPage" disabled="@(currentPage <= 1)">
+                ← Previous
+            </button>
+            <span class="page-info">
+                Page @currentPage of @totalPages (@filteredItems.Count() items)
+            </span>
+            <button class="btn-page" @onclick="NextPage" disabled="@(currentPage >= totalPages)">
+                Next →
+            </button>
+            <select @bind="pageSize" @bind:after="OnPageSizeChanged" class="page-size-selector">
+                <option value="10">10 per page</option>
+                <option value="20">20 per page</option>
+                <option value="50">50 per page</option>
+                <option value="100">100 per page</option>
+            </select>
+        </div>
+    }
+</div>
+
+@code {
+    private bool isLoading = true;
+    private List<InventoryItem> allItems = new();
+    private string selectedLocation = "";
+    private string selectedCategory = "";
+    private string selectedStatus = "";
+    private string searchQuery = "";
+    private string sortColumn = "ProductName";
+    private bool sortAscending = true;
+    private int currentPage = 1;
+    private int pageSize = 20;
+
+    private IEnumerable<InventoryItem> filteredItems => GetFilteredItems();
+    private IEnumerable<InventoryItem> paginatedItems => 
+        filteredItems.Skip((currentPage - 1) * pageSize).Take(pageSize);
+    private int totalPages => (int)Math.Ceiling(filteredItems.Count() / (double)pageSize);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInventory();
+    }
+
+    private async Task LoadInventory()
+    {
+        isLoading = true;
+        try
+        {
+            allItems = await InventoryService.GetAllInventoryAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading inventory: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private IEnumerable<InventoryItem> GetFilteredItems()
+    {
+        var items = allItems.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(selectedLocation))
+            items = items.Where(i => i.Location == selectedLocation);
+
+        if (!string.IsNullOrWhiteSpace(selectedCategory))
+            items = items.Where(i => i.Category == selectedCategory);
+
+        if (!string.IsNullOrWhiteSpace(selectedStatus))
+            items = items.Where(i => i.Status.ToString() == selectedStatus);
+
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+            items = items.Where(i => 
+                i.ProductName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                i.ProductCode.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+
+        // Apply sorting
+        items = sortColumn switch
+        {
+            "ProductCode" => sortAscending ? items.OrderBy(i => i.ProductCode) : items.OrderByDescending(i => i.ProductCode),
+            "ProductName" => sortAscending ? items.OrderBy(i => i.ProductName) : items.OrderByDescending(i => i.ProductName),
+            "CurrentStock" => sortAscending ? items.OrderBy(i => i.CurrentStock) : items.OrderByDescending(i => i.CurrentStock),
+            "StockValue" => sortAscending ? items.OrderBy(i => i.StockValue) : items.OrderByDescending(i => i.StockValue),
+            _ => items
+        };
+
+        return items;
+    }
+
+    private void FilterItems()
+    {
+        currentPage = 1;
+        StateHasChanged();
+    }
+
+    private void SortBy(string column)
+    {
+        if (sortColumn == column)
+            sortAscending = !sortAscending;
+        else
+        {
+            sortColumn = column;
+            sortAscending = true;
+        }
+    }
+
+    private string GetSortIcon(string column)
+    {
+        if (sortColumn != column) return "⇅";
+        return sortAscending ? "↑" : "↓";
+    }
+
+    private string GetDaysClass(decimal days)
+    {
+        return days switch
+        {
+            < 7 => "critical",
+            < 14 => "warning",
+            _ => "good"
+        };
+    }
+
+    private void ViewDetails(Guid id)
+    {
+        Navigation.NavigateTo($"/inventory/details/{id}");
+    }
+
+    private void EditItem(InventoryItem item)
+    {
+        Navigation.NavigateTo($"/inventory/edit/{item.Id}");
+    }
+
+    private void AdjustStock(InventoryItem item)
+    {
+        Navigation.NavigateTo($"/inventory/adjust/{item.Id}");
+    }
+
+    private void ViewHistory(InventoryItem item)
+    {
+        Navigation.NavigateTo($"/inventory/history/{item.Id}");
+    }
+
+    private void OpenAddItemDialog()
+    {
+        Navigation.NavigateTo("/inventory/add");
+    }
+
+    private async Task ExportData()
+    {
+        var csv = GenerateCsv(filteredItems);
+        await JSRuntime.InvokeVoidAsync("downloadFile", "inventory_export.csv", csv);
+    }
+
+    private string GenerateCsv(IEnumerable<InventoryItem> items)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Product Code,Product Name,Category,Current Stock,Min Stock,Unit,Location,Status,Value");
+        
+        foreach (var item in items)
+        {
+            sb.AppendLine($"{item.ProductCode},{item.ProductName},{item.Category},{item.CurrentStock}," +
+                         $"{item.MinimumStock},{item.Unit},{item.Location},{item.Status},{item.StockValue}");
+        }
+        
+        return sb.ToString();
+    }
+
+    private void PreviousPage()
+    {
+        if (currentPage > 1) currentPage--;
+    }
+
+    private void NextPage()
+    {
+        if (currentPage < totalPages) currentPage++;
+    }
+
+    private void OnPageSizeChanged()
+    {
+        currentPage = 1;
+    }
+}
+
+<style>
+    .inventory-container {
+        padding: 1rem;
+        max-width: 1600px;
+        margin: 0 auto;
+    }
+
+    .filters-section {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .filter-group label {
+        font-weight: 500;
+        font-size: 0.875rem;
+        color: #666;
+    }
+
+    .filter-group select,
+    .filter-group input {
+        padding: 0.5rem;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 0.875rem;
+    }
+
+    .stats-bar {
+        display: flex;
+        gap: 2rem;
+        padding: 1rem 1.5rem;
+        background: white;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .stat {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .stat-label {
+        color: #666;
+        font-size: 0.875rem;
+    }
+
+    .stat-value {
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+
+    .stat.critical .stat-value {
+        color: #dc3545;
+    }
+
+    .stat.warning .stat-value {
+        color: #ffc107;
+    }
+
+    .table-container {
+        background: white;
+        border-radius: 12px;
+        overflow-x: auto;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+
+    .inventory-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .inventory-table thead {
+        background: #f8f9fa;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .inventory-table th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: #333;
+        cursor: pointer;
+        user-select: none;
+        white-space: nowrap;
+    }
+
+    .inventory-table th:hover {
+        background: #e9ecef;
+    }
+
+    .inventory-table td {
+        padding: 1rem;
+        border-top: 1px solid #e9ecef;
+        font-size: 0.875rem;
+    }
+
+    .inventory-table tbody tr {
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .inventory-table tbody tr:hover {
+        background: #f8f9fa;
+    }
+
+    .inventory-table tbody tr.status-outofstock {
+        background: #fff5f5;
+    }
+
+    .inventory-table tbody tr.status-criticallylow {
+        background: #fff3cd;
+    }
+
+    .category-badge {
+        padding: 0.25rem 0.75rem;
+        background: #e7f3ff;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: #0066cc;
+    }
+
+    .location-tag {
+        font-size: 0.875rem;
+        color: #666;
+    }
+
+    .stock-cell {
+        display: flex;
+        align-items: baseline;
+        gap: 0.25rem;
+    }
+
+    .unit {
+        font-size: 0.75rem;
+        color: #999;
+    }
+
+    .days-left {
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .days-critical {
+        background: #dc3545;
+        color: white;
+    }
+
+    .days-warning {
+        background: #ffc107;
+        color: #333;
+    }
+
+    .days-good {
+        background: #28a745;
+        color: white;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .btn-icon {
+        padding: 0.25rem 0.5rem;
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: transform 0.2s;
+    }
+
+    .btn-icon:hover {
+        transform: scale(1.2);
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .btn-page {
+        padding: 0.5rem 1rem;
+        border: 1px solid #ddd;
+        background: white;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-page:hover:not(:disabled) {
+        background: #f8f9fa;
+        border-color: #007bff;
+    }
+
+    .btn-page:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .page-size-selector {
+        padding: 0.5rem;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+    }
+
+    @media (max-width: 768px) {
+        .filters-section {
+            grid-template-columns: 1fr;
+        }
+
+        .stats-bar {
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .inventory-table {
+            font-size: 0.75rem;
+        }
+
+        .inventory-table th,
+        .inventory-table td {
+            padding: 0.5rem;
+        }
+    }
+</style>

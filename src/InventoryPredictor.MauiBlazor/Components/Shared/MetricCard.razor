@@ -1,0 +1,99 @@
+<!-- Components/Shared/MetricCard.razor -->
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public string Icon { get; set; } = "";
+    [Parameter] public string Trend { get; set; } = "";
+    [Parameter] public string TrendDirection { get; set; } = "neutral";
+    [Parameter] public EventCallback OnClick { get; set; }
+}
+
+<div class="metric-card @(OnClick.HasDelegate ? "clickable" : "")" @onclick="OnClick">
+    <div class="metric-icon">@Icon</div>
+    <div class="metric-content">
+        <h3 class="metric-title">@Title</h3>
+        <div class="metric-value">@Value</div>
+        @if (!string.IsNullOrWhiteSpace(Trend))
+        {
+            <div class="metric-trend trend-@TrendDirection">
+                <span class="trend-icon">@GetTrendIcon()</span>
+                <span>@Trend</span>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private string GetTrendIcon()
+    {
+        return TrendDirection switch
+        {
+            "up" => "↗️",
+            "down" => "↘️",
+            _ => "→"
+        };
+    }
+}
+
+<style>
+    .metric-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .metric-card.clickable {
+        cursor: pointer;
+    }
+
+    .metric-card.clickable:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .metric-icon {
+        font-size: 2.5rem;
+        line-height: 1;
+    }
+
+    .metric-content {
+        flex: 1;
+    }
+
+    .metric-title {
+        margin: 0 0 0.5rem 0;
+        font-size: 0.875rem;
+        color: #666;
+        font-weight: 500;
+    }
+
+    .metric-value {
+        font-size: 1.75rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+
+    .metric-trend {
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .trend-up {
+        color: #28a745;
+    }
+
+    .trend-down {
+        color: #dc3545;
+    }
+
+    .trend-neutral {
+        color: #666;
+    }
+</style>

@@ -1,0 +1,60 @@
+
+<!-- Components/Shared/PredictionChart.razor -->
+@using System.Text.Json
+@inject IJSRuntime JSRuntime
+
+@code {
+    [Parameter] public Dictionary<DateTime, decimal> Data { get; set; } = new();
+    
+    private string chartId = $"chart_{Guid.NewGuid():N}";
+}
+
+<div id="@chartId" class="prediction-chart"></div>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && Data != null && Data.Any())
+        {
+            var chartData = new
+            {
+                labels = Data.Keys.Select(d => d.ToString("MMM dd")).ToArray(),
+                datasets = new[]
+                {
+                    new
+                    {
+                        label = "Predicted Demand",
+                        data = Data.Values.ToArray(),
+                        borderColor = "#007bff",
+                        backgroundColor = "rgba(0, 123, 255, 0.1)",
+                        tension = 0.4,
+                        fill = true
+                    }
+                }
+            };
+
+            var options = new
+            {
+                responsive = true,
+                maintainAspectRatio = false,
+                plugins = new
+                {
+                    legend = new { display = false }
+                },
+                scales = new
+                {
+                    y = new { beginAtZero = true }
+                }
+            };
+
+            await JSRuntime.InvokeVoidAsync("renderChart", chartId, chartData, options);
+        }
+    }
+}
+
+<style>
+    .prediction-chart {
+        height: 200px;
+        width: 100%;
+    }
+</style>
