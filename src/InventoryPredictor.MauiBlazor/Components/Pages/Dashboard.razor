@@ -1,0 +1,568 @@
+@page "/dashboard"
+@using InventoryPredictor.MauiBlazor.Services
+@using InventoryPredictor.Shared.Models
+@inject IInventoryService InventoryService
+@inject IPredictionService PredictionService
+@inject NavigationManager Navigation
+@inject SignalRService SignalR
+
+<PageTitle>Dashboard - Inventory Predictor</PageTitle>
+
+<div class="dashboard-container">
+    <!-- Header -->
+    <div class="dashboard-header">
+        <h1>📊 Inventory Dashboard</h1>
+        <div class="header-actions">
+            <span class="location-badge">📍 @selectedLocation</span>
+            <button class="btn-refresh" @onclick="RefreshData">
+                <span class="icon">🔄</span> Refresh
+            </button>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <LoadingSpinner Message="Loading dashboard data..." />
+    }
+    else if (hasError)
+    {
+        <div class="error-banner">
+            <span class="icon">⚠️</span>
+            <span>Failed to load dashboard data. Please try again.</span>
+        </div>
+    }
+    else
+    {
+        <!-- Key Metrics Cards -->
+        <div class="metrics-grid">
+            <MetricCard 
+                Title="Total Inventory Value"
+                Value="@($"KSh {analytics?.TotalInventoryValue:N0}")"
+                Icon="💰"
+                Trend="@inventoryValueTrend"
+                TrendDirection="up" />
+            
+            <MetricCard 
+                Title="Low Stock Products"
+                Value="@analytics?.LowStockProducts.ToString()"
+                Icon="⚠️"
+                Trend="@($"{analytics?.LowStockProducts} items need attention")"
+                TrendDirection="@(analytics?.LowStockProducts > 5 ? "down" : "neutral")"
+                OnClick="@(() => Navigation.NavigateTo("/inventory?filter=low-stock"))" />
+            
+            <MetricCard 
+                Title="Today's Sales"
+                Value="@($"KSh {todaysSales:N0}")"
+                Icon="📈"
+                Trend="@salesTrend"
+                TrendDirection="up" />
+            
+            <MetricCard 
+                Title="Active Alerts"
+                Value="@activeAlerts.Count.ToString()"
+                Icon="🔔"
+                Trend="@($"{criticalAlerts} critical")"
+                TrendDirection="@(criticalAlerts > 0 ? "down" : "neutral")"
+                OnClick="@(() => Navigation.NavigateTo("/alerts"))" />
+        </div>
+
+        <!-- Critical Alerts Banner -->
+        @if (criticalAlerts > 0)
+        {
+            <AlertBanner 
+                Severity="Critical"
+                Message="@($"You have {criticalAlerts} critical alerts requiring immediate attention")"
+                OnViewClick="@(() => Navigation.NavigateTo("/alerts?severity=critical"))" />
+        }
+
+        <!-- Charts Section -->
+        <div class="charts-section">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3>📊 Sales Trends (Last 30 Days)</h3>
+                    <select @bind="salesChartPeriod" class="period-selector">
+                        <option value="7">Last 7 days</option>
+                        <option value="14">Last 14 days</option>
+                        <option value="30" selected>Last 30 days</option>
+                    </select>
+                </div>
+                <div class="chart-container">
+                    @if (salesTrendData != null && salesTrendData.Any())
+                    {
+                        <SalesTrendChart Data="@salesTrendData" />
+                    }
+                    else
+                    {
+                        <p class="no-data">No sales data available</p>
+                    }
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3>🎯 Inventory by Category</h3>
+                </div>
+                <div class="chart-container">
+                    @if (categoryData != null && categoryData.Any())
+                    {
+                        <CategoryPieChart Data="@categoryData" />
+                    }
+                    else
+                    {
+                        <p class="no-data">No category data available</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Products Section -->
+        <div class="section-grid">
+            <!-- Top Selling Products -->
+            <div class="product-card">
+                <h3>🏆 Top Selling Products</h3>
+                @if (topProducts != null && topProducts.Any())
+                {
+                    <div class="product-list">
+                        @foreach (var product in topProducts.Take(5))
+                        {
+                            <div class="product-item" @onclick="@(() => ViewProduct(product.ProductCode))">
+                                <div class="product-info">
+                                    <span class="product-name">@product.ProductName</span>
+                                    <span class="product-metric">@product.TotalQuantitySold units sold</span>
+                                </div>
+                                <div class="product-value">
+                                    <span class="revenue">KSh @product.TotalRevenue.ToString("N0")</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="no-data">No sales data available</p>
+                }
+            </div>
+
+            <!-- Products Needing Reorder -->
+            <div class="product-card urgent">
+                <h3>🚨 Reorder Recommendations</h3>
+                @if (reorderRecommendations != null && reorderRecommendations.Any())
+                {
+                    <div class="product-list">
+                        @foreach (var item in reorderRecommendations.Take(5))
+                        {
+                            <div class="product-item" @onclick="@(() => ViewProduct(item.ProductCode))">
+                                <div class="product-info">
+                                    <span class="product-name">@item.ProductName</span>
+                                    <span class="product-metric urgency-@item.Urgency.ToLower()">
+                                        @item.DaysUntilStockOut days remaining
+                                    </span>
+                                </div>
+                                <div class="product-action">
+                                    <button class="btn-sm btn-primary" @onclick:stopPropagation="true" 
+                                            @onclick="@(() => CreatePurchaseOrder(item))">
+                                        Order @item.RecommendedOrderQuantity units
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="no-data">✅ All products are well-stocked</p>
+                }
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="activity-section">
+            <h3>📋 Recent Activity</h3>
+            <div class="activity-list">
+                @if (recentActivity != null && recentActivity.Any())
+                {
+                    @foreach (var activity in recentActivity.Take(10))
+                    {
+                        <div class="activity-item">
+                            <span class="activity-icon">@GetActivityIcon(activity.Type)</span>
+                            <div class="activity-content">
+                                <p class="activity-message">@activity.Message</p>
+                                <span class="activity-time">@activity.Timestamp.ToString("MMM dd, HH:mm")</span>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p class="no-data">No recent activity</p>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool isLoading = true;
+    private bool hasError = false;
+    private string selectedLocation = "All Locations";
+    private int salesChartPeriod = 30;
+
+    private InventoryAnalytics? analytics;
+    private List<StockAlert> activeAlerts = new();
+    private int criticalAlerts = 0;
+    private decimal todaysSales = 0;
+    private string inventoryValueTrend = "";
+    private string salesTrend = "";
+
+    private List<SalesTrendPoint> salesTrendData = new();
+    private List<CategoryData> categoryData = new();
+    private List<TopProduct> topProducts = new();
+    private List<ReorderRecommendation> reorderRecommendations = new();
+    private List<ActivityItem> recentActivity = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardData();
+        
+        // Subscribe to real-time updates
+        await SignalR.ConnectAsync();
+        SignalR.OnStockLevelChanged += HandleStockUpdate;
+        SignalR.OnNewAlert += HandleNewAlert;
+    }
+
+    private async Task LoadDashboardData()
+    {
+        isLoading = true;
+        hasError = false;
+
+        try
+        {
+            // Load analytics data
+            analytics = await InventoryService.GetAnalyticsAsync(selectedLocation);
+            
+            // Load alerts
+            activeAlerts = await InventoryService.GetActiveAlertsAsync();
+            criticalAlerts = activeAlerts.Count(a => a.Severity == AlertSeverity.Critical);
+            
+            // Load sales data
+            var salesSummary = await InventoryService.GetSalesSummaryAsync(DateTime.Now.Date, DateTime.Now);
+            todaysSales = salesSummary.TotalRevenue;
+            salesTrend = $"+{salesSummary.GrowthPercentage:F1}% vs yesterday";
+            
+            // Load chart data
+            salesTrendData = await InventoryService.GetSalesTrendsAsync(salesChartPeriod);
+            categoryData = await InventoryService.GetInventoryByCategoryAsync();
+            
+            // Load top products
+            topProducts = analytics?.TopSellingProducts ?? new();
+            
+            // Load reorder recommendations
+            var predictions = await PredictionService.GetReorderRecommendationsAsync();
+            reorderRecommendations = predictions.Take(5).ToList();
+            
+            // Load recent activity
+            recentActivity = await InventoryService.GetRecentActivityAsync(20);
+            
+            // Calculate trends
+            inventoryValueTrend = analytics != null 
+                ? $"+{analytics.InventoryValueGrowth:F1}% this month" 
+                : "No data";
+        }
+        catch (Exception ex)
+        {
+            hasError = true;
+            Console.WriteLine($"Error loading dashboard: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task RefreshData()
+    {
+        await LoadDashboardData();
+        StateHasChanged();
+    }
+
+    private void HandleStockUpdate(InventoryItem item)
+    {
+        // Update UI when stock levels change
+        InvokeAsync(async () =>
+        {
+            await LoadDashboardData();
+            StateHasChanged();
+        });
+    }
+
+    private void HandleNewAlert(StockAlert alert)
+    {
+        // Add new alert to the list
+        InvokeAsync(() =>
+        {
+            activeAlerts.Insert(0, alert);
+            if (alert.Severity == AlertSeverity.Critical)
+            {
+                criticalAlerts++;
+            }
+            StateHasChanged();
+        });
+    }
+
+    private void ViewProduct(string productCode)
+    {
+        Navigation.NavigateTo($"/inventory/details/{productCode}");
+    }
+
+    private async Task CreatePurchaseOrder(ReorderRecommendation item)
+    {
+        // Navigate to create purchase order
+        Navigation.NavigateTo($"/orders/create?productId={item.ProductId}&quantity={item.RecommendedOrderQuantity}");
+    }
+
+    private string GetActivityIcon(string activityType)
+    {
+        return activityType switch
+        {
+            "Sale" => "💰",
+            "Restock" => "📦",
+            "Alert" => "🔔",
+            "Return" => "↩️",
+            "Adjustment" => "✏️",
+            _ => "📝"
+        };
+    }
+
+    public void Dispose()
+    {
+        SignalR.OnStockLevelChanged -= HandleStockUpdate;
+        SignalR.OnNewAlert -= HandleNewAlert;
+    }
+}
+
+<style>
+    .dashboard-container {
+        padding: 1rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .dashboard-header h1 {
+        font-size: 1.75rem;
+        font-weight: bold;
+        margin: 0;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+    }
+
+    .location-badge {
+        padding: 0.5rem 1rem;
+        background: #f0f0f0;
+        border-radius: 8px;
+        font-weight: 500;
+    }
+
+    .btn-refresh {
+        padding: 0.5rem 1rem;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .charts-section {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .chart-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .chart-header h3 {
+        margin: 0;
+        font-size: 1.1rem;
+    }
+
+    .period-selector {
+        padding: 0.5rem;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+    }
+
+    .section-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .product-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .product-card.urgent {
+        border-left: 4px solid #dc3545;
+    }
+
+    .product-card h3 {
+        margin: 0 0 1rem 0;
+        font-size: 1.1rem;
+    }
+
+    .product-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .product-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .product-item:hover {
+        background: #e9ecef;
+    }
+
+    .product-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .product-name {
+        font-weight: 500;
+    }
+
+    .product-metric {
+        font-size: 0.875rem;
+        color: #666;
+    }
+
+    .urgency-high {
+        color: #dc3545;
+        font-weight: 600;
+    }
+
+    .urgency-medium {
+        color: #ffc107;
+        font-weight: 600;
+    }
+
+    .activity-section {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .activity-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .activity-item {
+        display: flex;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+
+    .activity-icon {
+        font-size: 1.5rem;
+    }
+
+    .activity-content {
+        flex: 1;
+    }
+
+    .activity-message {
+        margin: 0 0 0.25rem 0;
+        font-weight: 500;
+    }
+
+    .activity-time {
+        font-size: 0.875rem;
+        color: #666;
+    }
+
+    .no-data {
+        text-align: center;
+        color: #999;
+        padding: 2rem;
+    }
+
+    .error-banner {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        padding: 1rem;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    @media (max-width: 768px) {
+        .dashboard-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .metrics-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .charts-section,
+        .section-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>

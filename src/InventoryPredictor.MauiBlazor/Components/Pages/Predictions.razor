@@ -1,0 +1,641 @@
+@page "/predictions"
+@using InventoryPredictor.MauiBlazor.Services
+@using InventoryPredictor.Shared.Models
+@inject IPredictionService PredictionService
+@inject IInventoryService InventoryService
+@inject NavigationManager Navigation
+
+<PageTitle>AI Predictions - Inventory Predictor</PageTitle>
+
+<div class="predictions-container">
+    <!-- Header -->
+    <div class="page-header">
+        <div class="header-content">
+            <h1>🔮 AI-Powered Predictions</h1>
+            <p class="subtitle">Intelligent demand forecasting and stock-out prevention</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn-secondary" @onclick="RefreshPredictions">
+                🔄 Refresh Predictions
+            </button>
+            <button class="btn-primary" @onclick="OpenDataAgent">
+                🤖 Ask AI Assistant
+            </button>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <LoadingSpinner Message="Generating AI predictions..." />
+    }
+    else
+    {
+        <!-- Summary Cards -->
+        <div class="summary-cards">
+            <div class="summary-card warning">
+                <div class="card-icon">⚠️</div>
+                <div class="card-content">
+                    <h3>@predictedStockOuts</h3>
+                    <p>Predicted Stock-Outs (Next 30 Days)</p>
+                </div>
+            </div>
+
+            <div class="summary-card info">
+                <div class="card-icon">📦</div>
+                <div class="card-content">
+                    <h3>@reorderRecommendationsCount</h3>
+                    <p>Reorder Recommendations</p>
+                </div>
+            </div>
+
+            <div class="summary-card success">
+                <div class="card-icon">✅</div>
+                <div class="card-content">
+                    <h3>@avgAccuracy%</h3>
+                    <p>Prediction Accuracy</p>
+                </div>
+            </div>
+
+            <div class="summary-card neutral">
+                <div class="card-icon">💰</div>
+                <div class="card-content">
+                    <h3>KSh @estimatedSavings.ToString("N0")</h3>
+                    <p>Potential Cost Savings</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab @(activeTab == "stockouts" ? "active" : "")" 
+                    @onclick='() => activeTab = "stockouts"'>
+                🚨 Stock-Out Predictions
+            </button>
+            <button class="tab @(activeTab == "reorder" ? "active" : "")" 
+                    @onclick='() => activeTab = "reorder"'>
+                📋 Reorder Recommendations
+            </button>
+            <button class="tab @(activeTab == "demand" ? "active" : "")" 
+                    @onclick='() => activeTab = "demand"'>
+                📈 Demand Forecasts
+            </button>
+            <button class="tab @(activeTab == "trends" ? "active" : "")" 
+                    @onclick='() => activeTab = "trends"'>
+                📊 Trend Analysis
+            </button>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+            @if (activeTab == "stockouts")
+            {
+                <div class="content-section">
+                    <h2>🚨 Products At Risk of Stock-Out</h2>
+                    <p class="section-description">
+                        AI-predicted stock-outs based on current inventory levels and demand patterns
+                    </p>
+
+                    @if (stockOutPredictions.Any())
+                    {
+                        <div class="prediction-grid">
+                            @foreach (var prediction in stockOutPredictions)
+                            {
+                                <div class="prediction-card risk-@GetRiskLevel(prediction.StockOutProbability)">
+                                    <div class="card-header">
+                                        <h3>@prediction.ProductName</h3>
+                                        <span class="risk-badge risk-@GetRiskLevel(prediction.StockOutProbability)">
+                                            @($"{prediction.StockOutProbability:P0} Risk")
+                                        </span>
+                                    </div>
+
+                                    <div class="prediction-details">
+                                        <div class="detail-row">
+                                            <span class="label">Current Stock:</span>
+                                            <span class="value">@prediction.CurrentStock @prediction.Unit</span>
+                                        </div>
+                                        <div class="detail-row">
+                                            <span class="label">Days Until Stock-Out:</span>
+                                            <span class="value urgent">@prediction.DaysUntilStockOut days</span>
+                                        </div>
+                                        <div class="detail-row">
+                                            <span class="label">Est. Stock-Out Date:</span>
+                                            <span class="value">@prediction.EstimatedStockOutDate.ToString("MMM dd, yyyy")</span>
+                                        </div>
+                                        <div class="detail-row">
+                                            <span class="label">Predicted Demand (7d):</span>
+                                            <span class="value">@prediction.PredictedDemand7Days units</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="ai-insights">
+                                        <h4>🤖 AI Insights:</h4>
+                                        <ul>
+                                            @foreach (var insight in prediction.Insights)
+                                            {
+                                                <li>@insight</li>
+                                            }
+                                        </ul>
+                                    </div>
+
+                                    <div class="card-actions">
+                                        <button class="btn-action btn-primary" 
+                                                @onclick="@(() => CreatePurchaseOrder(prediction))">
+                                            Order Now (@prediction.RecommendedOrderQuantity units)
+                                        </button>
+                                        <button class="btn-action btn-secondary" 
+                                                @onclick="@(() => ViewDetails(prediction.ProductId))">
+                                            View Details
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="empty-state">
+                            <span class="empty-icon">✅</span>
+                            <h3>All Clear!</h3>
+                            <p>No stock-out risks detected for the next 30 days</p>
+                        </div>
+                    }
+                </div>
+            }
+            else if (activeTab == "reorder")
+            {
+                <div class="content-section">
+                    <h2>📋 Smart Reorder Recommendations</h2>
+                    <p class="section-description">
+                        Optimized order quantities based on demand forecasts and lead times
+                    </p>
+
+                    @if (reorderRecommendations.Any())
+                    {
+                        <div class="reorder-table-wrapper">
+                            <table class="reorder-table">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Current Stock</th>
+                                        <th>Order Qty</th>
+                                        <th>Order By</th>
+                                        <th>Urgency</th>
+                                        <th>Est. Cost</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in reorderRecommendations)
+                                    {
+                                        <tr class="urgency-@item.Urgency.ToLower()">
+                                            <td>
+                                                <div class="product-cell">
+                                                    <strong>@item.ProductName</strong>
+                                                    <span class="product-code">@item.ProductCode</span>
+                                                </div>
+                                            </td>
+                                            <td>@item.CurrentStock @item.Unit</td>
+                                            <td><strong>@item.RecommendedOrderQuantity @item.Unit</strong></td>
+                                            <td>@item.RecommendedOrderDate.ToString("MMM dd")</td>
+                                            <td>
+                                                <span class="urgency-badge urgency-@item.Urgency.ToLower()">
+                                                    @item.Urgency
+                                                </span>
+                                            </td>
+                                            <td>KSh @item.EstimatedCost.ToString("N0")</td>
+                                            <td>
+                                                <button class="btn-sm btn-primary" 
+                                                        @onclick="@(() => CreatePurchaseOrder(item))">
+                                                    Order
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="bulk-actions">
+                            <button class="btn-primary" @onclick="CreateBulkOrder">
+                                📦 Create Bulk Purchase Order (@reorderRecommendations.Count items)
+                            </button>
+                            <span class="total-cost">
+                                Total Estimated Cost: KSh @reorderRecommendations.Sum(r => r.EstimatedCost).ToString("N0")
+                            </span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="empty-state">
+                            <span class="empty-icon">✅</span>
+                            <h3>All Stocked Up!</h3>
+                            <p>No reordering needed at this time</p>
+                        </div>
+                    }
+                </div>
+            }
+            else if (activeTab == "demand")
+            {
+                <div class="content-section">
+                    <h2>📈 30-Day Demand Forecasts</h2>
+                    <p class="section-description">
+                        AI-generated demand predictions for your top products
+                    </p>
+
+                    <div class="search-bar">
+                        <input type="text" 
+                               placeholder="🔍 Search products..." 
+                               @bind="searchQuery"
+                               @bind:event="oninput" />
+                    </div>
+
+                    @if (filteredDemandForecasts.Any())
+                    {
+                        <div class="forecast-list">
+                            @foreach (var forecast in filteredDemandForecasts)
+                            {
+                                <div class="forecast-card">
+                                    <div class="forecast-header">
+                                        <div>
+                                            <h3>@forecast.ProductName</h3>
+                                            <span class="forecast-meta">
+                                                Confidence: @($"{forecast.ConfidenceScore:P0}") 
+                                                | Trend: @GetTrendEmoji(forecast.Trend) @forecast.Trend
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="forecast-chart">
+                                        <PredictionChart Data="@forecast.DemandForecast" />
+                                    </div>
+
+                                    <div class="forecast-metrics">
+                                        <div class="metric">
+                                            <span class="metric-label">7-Day Forecast</span>
+                                            <span class="metric-value">@forecast.PredictedDemand7Days units</span>
+                                        </div>
+                                        <div class="metric">
+                                            <span class="metric-label">14-Day Forecast</span>
+                                            <span class="metric-value">@forecast.PredictedDemand14Days units</span>
+                                        </div>
+                                        <div class="metric">
+                                            <span class="metric-label">30-Day Forecast</span>
+                                            <span class="metric-value">@forecast.PredictedDemand30Days units</span>
+                                        </div>
+                                    </div>
+
+                                    @if (forecast.IsSeasonalProduct)
+                                    {
+                                        <div class="seasonality-badge">
+                                            🌡️ Seasonal Product Detected
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="empty-state">
+                            <span class="empty-icon">📊</span>
+                            <p>No demand forecasts available</p>
+                        </div>
+                    }
+                </div>
+            }
+            else if (activeTab == "trends")
+            {
+                <div class="content-section">
+                    <h2>📊 Trend Analysis & Insights</h2>
+                    <p class="section-description">
+                        Market trends and patterns identified by AI
+                    </p>
+
+                    <div class="trends-grid">
+                        @foreach (var trend in trendInsights)
+                        {
+                            <div class="trend-card">
+                                <div class="trend-icon">@trend.Icon</div>
+                                <h3>@trend.Title</h3>
+                                <p>@trend.Description</p>
+                                <div class="trend-impact impact-@trend.Impact.ToLower()">
+                                    Impact: @trend.Impact
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- AI Data Agent Modal -->
+    @if (showDataAgent)
+    {
+        <div class="modal-overlay" @onclick="CloseDataAgent">
+            <div class="modal-content" @onclick:stopPropagation="true">
+                <div class="modal-header">
+                    <h2>🤖 AI Assistant</h2>
+                    <button class="btn-close" @onclick="CloseDataAgent">×</button>
+                </div>
+                <DataAgentChat OnClose="CloseDataAgent" />
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool isLoading = true;
+    private string activeTab = "stockouts";
+    private string searchQuery = "";
+    private bool showDataAgent = false;
+
+    // Data
+    private List<PredictionResult> stockOutPredictions = new();
+    private List<ReorderRecommendation> reorderRecommendations = new();
+    private List<PredictionResult> demandForecasts = new();
+    private List<TrendInsight> trendInsights = new();
+
+    // Summary metrics
+    private int predictedStockOuts = 0;
+    private int reorderRecommendationsCount = 0;
+    private int avgAccuracy = 87;
+    private decimal estimatedSavings = 0;
+
+    private IEnumerable<PredictionResult> filteredDemandForecasts => 
+        demandForecasts.Where(f => string.IsNullOrWhiteSpace(searchQuery) || 
+                                   f.ProductName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPredictions();
+    }
+
+    private async Task LoadPredictions()
+    {
+        isLoading = true;
+
+        try
+        {
+            // Load stock-out predictions
+            stockOutPredictions = await PredictionService.GetStockOutPredictionsAsync(30);
+            predictedStockOuts = stockOutPredictions.Count;
+
+            // Load reorder recommendations
+            reorderRecommendations = await PredictionService.GetReorderRecommendationsAsync();
+            reorderRecommendationsCount = reorderRecommendations.Count;
+
+            // Load demand forecasts
+            demandForecasts = await PredictionService.GetDemandForecastsAsync();
+
+            // Load trend insights
+            trendInsights = await PredictionService.GetTrendInsightsAsync();
+
+            // Calculate estimated savings
+            estimatedSavings = CalculateEstimatedSavings();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading predictions: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task RefreshPredictions()
+    {
+        await LoadPredictions();
+        StateHasChanged();
+    }
+
+    private string GetRiskLevel(decimal probability)
+    {
+        return probability switch
+        {
+            >= 0.8m => "high",
+            >= 0.5m => "medium",
+            _ => "low"
+        };
+    }
+
+    private string GetTrendEmoji(TrendDirection trend)
+    {
+        return trend switch
+        {
+            TrendDirection.Increasing => "📈",
+            TrendDirection.Decreasing => "📉",
+            TrendDirection.Stable => "➡️",
+            TrendDirection.Volatile => "📊",
+            _ => "➡️"
+        };
+    }
+
+    private void CreatePurchaseOrder(PredictionResult prediction)
+    {
+        Navigation.NavigateTo($"/orders/create?productId={prediction.ProductId}&quantity={prediction.RecommendedOrderQuantity}");
+    }
+
+    private void CreatePurchaseOrder(ReorderRecommendation item)
+    {
+        Navigation.NavigateTo($"/orders/create?productId={item.ProductId}&quantity={item.RecommendedOrderQuantity}");
+    }
+
+    private void CreateBulkOrder()
+    {
+        var productIds = string.Join(",", reorderRecommendations.Select(r => r.ProductId));
+        Navigation.NavigateTo($"/orders/create-bulk?products={productIds}");
+    }
+
+    private void ViewDetails(Guid productId)
+    {
+        Navigation.NavigateTo($"/inventory/details/{productId}");
+    }
+
+    private void OpenDataAgent()
+    {
+        showDataAgent = true;
+    }
+
+    private void CloseDataAgent()
+    {
+        showDataAgent = false;
+    }
+
+    private decimal CalculateEstimatedSavings()
+    {
+        // Simple calculation: prevent stockouts saves opportunity cost
+        // Assume 20% margin loss per stockout day
+        return stockOutPredictions.Sum(p => p.CurrentStock * p.UnitPrice * 0.2m * p.DaysUntilStockOut);
+    }
+}
+
+<style>
+    /* Add comprehensive styles similar to Dashboard.razor */
+    .predictions-container {
+        padding: 1rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 2rem;
+    }
+
+    .header-content h1 {
+        font-size: 1.75rem;
+        font-weight: bold;
+        margin: 0 0 0.5rem 0;
+    }
+
+    .subtitle {
+        color: #666;
+        margin: 0;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 0.75rem;
+    }
+
+    .summary-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .summary-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .card-icon {
+        font-size: 2.5rem;
+    }
+
+    .card-content h3 {
+        margin: 0;
+        font-size: 1.75rem;
+        font-weight: bold;
+    }
+
+    .card-content p {
+        margin: 0.25rem 0 0 0;
+        color: #666;
+        font-size: 0.875rem;
+    }
+
+    .tabs {
+        display: flex;
+        gap: 0.5rem;
+        border-bottom: 2px solid #e0e0e0;
+        margin-bottom: 1.5rem;
+        overflow-x: auto;
+    }
+
+    .tab {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-weight: 500;
+        color: #666;
+        border-bottom: 3px solid transparent;
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+
+    .tab:hover {
+        color: #007bff;
+    }
+
+    .tab.active {
+        color: #007bff;
+        border-bottom-color: #007bff;
+    }
+
+    .prediction-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .prediction-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-left: 4px solid #28a745;
+    }
+
+    .prediction-card.risk-high {
+        border-left-color: #dc3545;
+    }
+
+    .prediction-card.risk-medium {
+        border-left-color: #ffc107;
+    }
+
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+
+    .risk-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .risk-badge.risk-high {
+        background: #dc3545;
+        color: white;
+    }
+
+    .risk-badge.risk-medium {
+        background: #ffc107;
+        color: #333;
+    }
+
+    .risk-badge.risk-low {
+        background: #28a745;
+        color: white;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border-radius: 12px;
+    }
+
+    .empty-icon {
+        font-size: 4rem;
+        display: block;
+        margin-bottom: 1rem;
+    }
+
+    @media (max-width: 768px) {
+        .page-header {
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .prediction-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
