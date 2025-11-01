@@ -2,7 +2,7 @@
   description = "Nix flake for InventoryPredictor .NET MAUI + Blazor Hybrid application";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -13,7 +13,7 @@
         src = ./.;
         # Use the .NET 8 SDK available in nixpkgs. If your channel uses a different
         # attribute name (eg. dotnet-sdk_8 or dotnet-sdk-8), update this line.
-        dotnet = pkgs.dotnet-sdk_10;
+        dotnet = pkgs.dotnet-sdk;
 
         buildDotnetProject = { name, projectPath, publishArgs ? "" }:
           pkgs.runCommand name { inherit dotnet; } ''
