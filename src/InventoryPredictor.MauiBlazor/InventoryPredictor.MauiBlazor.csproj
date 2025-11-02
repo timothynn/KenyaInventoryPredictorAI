@@ -13,7 +13,38 @@
 		<SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
 		<UseMauiEssentials>true</UseMauiEssentials>
 	</PropertyGroup>
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFrameworks>net8.0-android;net8.0-ios;net8.0-windows10.0.19041.0</TargetFrameworks>
+		<OutputType>Exe</OutputType>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+		<PublishTrimmed>false</PublishTrimmed>
+		<ApplicationTitle>InventoryPredictor</ApplicationTitle>
+		<RootNamespace>InventoryPredictor.MauiBlazor</RootNamespace>
+	</PropertyGroup>
 
+	<ItemGroup>
+		<ProjectReference Include="../InventoryPredictor.Shared/InventoryPredictor.Shared.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Blazor WebView for MAUI -->
+		<PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="8.0.100" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<MauiAsset Include="Resources\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$([MSBuild]::GetTargetPlatformIdentifier($(TargetFramework)))' == 'windows'">
+		<PackageReference Include="Microsoft.WindowsAppSDK" Version="1.4.231008000" />
+		<PackageReference Include="Microsoft.Graphics.Win2D" Version="1.1.1" />
+		<Manifest Include="Platforms\Windows\Package.appxmanifest" />
+	</ItemGroup>
+</Project>
 	<ItemGroup>
 		<ProjectReference Include="..\InventoryPredictor.Shared\InventoryPredictor.Shared.csproj" />
 	</ItemGroup>

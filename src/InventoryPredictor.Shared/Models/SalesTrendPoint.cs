@@ -1,4 +1,4 @@
-
+namespace InventoryPredictor.Shared.Models;
 public class SalesTrendPoint
 {
     public DateTime Date { get; set; }

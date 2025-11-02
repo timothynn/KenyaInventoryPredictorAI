@@ -1,3 +1,5 @@
+namespace InventoryPredictor.Shared.Models;
+
 // Models/InventoryItem.cs
 public class InventoryItem
 {

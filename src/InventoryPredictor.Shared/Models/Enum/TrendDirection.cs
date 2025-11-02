@@ -1,4 +1,4 @@
-
+namespace InventoryPredictor.Shared.Models;
 public enum TrendDirection
 {
     Increasing,

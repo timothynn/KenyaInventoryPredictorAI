@@ -1,3 +1,5 @@
+namespace InventoryPredictor.Shared.Models;
+
 public enum AlertType
 {
     LowStock,

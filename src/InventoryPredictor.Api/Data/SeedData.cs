@@ -1,5 +1,9 @@
-
 // SeedData.cs
+using Microsoft.EntityFrameworkCore;
+using InventoryPredictor.Shared.Models;
+
+namespace InventoryPredictor.Api.Data;
+
 public static class SeedData
 {
     public static async Task InitializeAsync(AppDbContext context)
@@ -123,7 +127,7 @@ public static class SeedData
 
         // Seed Sales Transactions
         var random = new Random();
-        var transactions = new List<SalesTransaction>();
+    var transactions = new List<SalesTransaction>();
 
         for (int i = 0; i < 1000; i++)
         {

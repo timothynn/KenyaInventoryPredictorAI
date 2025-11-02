@@ -1,4 +1,4 @@
-
+namespace InventoryPredictor.Shared.Models;
 public class Location
 {
     public Guid Id { get; set; }

@@ -1,4 +1,4 @@
-
+namespace InventoryPredictor.Shared.Models;
 // Models/SeasonalFactor.cs
 public class SeasonalFactor
 {

@@ -1,4 +1,4 @@
-
+namespace InventoryPredictor.Shared.Models;
 // Models/TopProduct.cs
 public class TopProduct
 {

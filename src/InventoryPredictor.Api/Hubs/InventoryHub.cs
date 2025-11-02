@@ -3,6 +3,7 @@
 namespace InventoryPredictor.Api.Hubs;
 
 using Microsoft.AspNetCore.SignalR;
+using InventoryPredictor.Shared.Models;
 
 public class InventoryHub : Hub
 {

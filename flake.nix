@@ -2,7 +2,7 @@
   description = "Nix flake for InventoryPredictor .NET MAUI + Blazor Hybrid application";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -50,7 +50,7 @@
 
         devShells = {
           default = pkgs.mkShell {
-            buildInputs = [ dotnet pkgs.git pkgs.unzip pkgs.zip pkgs.cacert pkgs.jq pkgs.dotnet-aspnetcore_8_0-bin ];
+            buildInputs = [ dotnet pkgs.git pkgs.unzip pkgs.zip pkgs.cacert pkgs.jq pkgs.dotnet-aspnetcore ];
             shellHook = ''
               export DOTNET_CLI_TELEMETRY_OPTOUT=1
               echo "Dev shell: dotnet available at ${dotnet}/bin/dotnet"

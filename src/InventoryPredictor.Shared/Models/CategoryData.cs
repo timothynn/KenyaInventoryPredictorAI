@@ -1,4 +1,4 @@
-
+namespace InventoryPredictor.Shared.Models;
 public class CategoryData
 {
     public string Category { get; set; } = string.Empty;

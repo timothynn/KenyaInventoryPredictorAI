@@ -1,3 +1,4 @@
+namespace InventoryPredictor.Shared.Models;
 
 // Models/PredictionResult.cs
 public class PredictionResult

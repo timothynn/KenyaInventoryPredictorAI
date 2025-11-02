@@ -71,14 +71,15 @@ builder.Services.AddSignalR();
 builder.Services.AddHttpClient();
 
 // Register Application Services
-builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddScoped<IPredictionService, PredictionService>();
 builder.Services.AddScoped<IFabricService, FabricService>();
 builder.Services.AddScoped<IEventHubService, EventHubService>();
 builder.Services.AddScoped<IDataAgentService, DataAgentService>();
-builder.Services.AddScoped<IAlertService, AlertService>();
-builder.Services.AddScoped<ISalesService, SalesService>();
-builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
+// The following service registrations are commented out until implementations exist
+// builder.Services.AddScoped<IInventoryService, InventoryService>();
+// builder.Services.AddScoped<IAlertService, AlertService>();
+// builder.Services.AddScoped<ISalesService, SalesService>();
+// builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 
 // Caching
 builder.Services.AddMemoryCache();

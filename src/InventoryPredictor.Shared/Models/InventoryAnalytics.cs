@@ -1,3 +1,4 @@
+namespace InventoryPredictor.Shared.Models;
 
 // Models/InventoryAnalytics.cs
 public class InventoryAnalytics

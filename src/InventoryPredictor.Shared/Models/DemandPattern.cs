@@ -1,3 +1,4 @@
+namespace InventoryPredictor.Shared.Models;
 
 // Models/DemandPattern.cs
 public class DemandPattern
