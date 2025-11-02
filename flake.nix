@@ -50,7 +50,7 @@
 
         devShells = {
           default = pkgs.mkShell {
-            buildInputs = [ dotnet pkgs.git pkgs.unzip pkgs.zip pkgs.cacert pkgs.jq ];
+            buildInputs = [ dotnet pkgs.git pkgs.unzip pkgs.zip pkgs.cacert pkgs.jq pkgs.dotnet-aspnetcore_8_0-bin ];
             shellHook = ''
               export DOTNET_CLI_TELEMETRY_OPTOUT=1
               echo "Dev shell: dotnet available at ${dotnet}/bin/dotnet"
