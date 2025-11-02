@@ -437,7 +437,8 @@ public class InventoryController : ControllerBase
             < 1.0m => StockStatus.Low,
             >= 1.0m and < 1.5m => StockStatus.Optimal,
             >= 1.5m and < 2.0m => StockStatus.High,
-            >= 2.0m => StockStatus.Overstocked
+            >= 2.0m => StockStatus.Overstocked,
+            _ => StockStatus.Optimal // Fallback for values not matching any previous pattern
         };
     }
 

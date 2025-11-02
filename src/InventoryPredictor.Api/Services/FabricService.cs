@@ -73,7 +73,7 @@ public class FabricService : IFabricService
 			int or long or decimal or double => value.ToString(),
 			bool b => b.ToString().ToLower(),
 			DateTime dt => $"datetime({dt:yyyy-MM-ddTHH:mm:ss})",
-			_ => value.ToString()
+			_ => value is null ? "null" : value.ToString()
 		};
 	}
 

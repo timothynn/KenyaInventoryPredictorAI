@@ -12,17 +12,7 @@
 		<ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
 		<SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
 		<UseMauiEssentials>true</UseMauiEssentials>
-	</PropertyGroup>
-<Project Sdk="Microsoft.NET.Sdk">
-	<PropertyGroup>
-		<TargetFrameworks>net8.0-android;net8.0-ios;net8.0-windows10.0.19041.0</TargetFrameworks>
-		<OutputType>Exe</OutputType>
-		<Nullable>enable</Nullable>
-		<ImplicitUsings>enable</ImplicitUsings>
-		<UseMaui>true</UseMaui>
-		<SingleProject>true</SingleProject>
 		<PublishTrimmed>false</PublishTrimmed>
-		<ApplicationTitle>InventoryPredictor</ApplicationTitle>
 		<RootNamespace>InventoryPredictor.MauiBlazor</RootNamespace>
 	</PropertyGroup>
 
@@ -32,7 +22,7 @@
 
 	<ItemGroup>
 		<!-- Blazor WebView for MAUI -->
-		<PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="8.0.100" />
+		<PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="8.0.86" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -45,9 +35,6 @@
 		<Manifest Include="Platforms\Windows\Package.appxmanifest" />
 	</ItemGroup>
 </Project>
-	<ItemGroup>
-		<ProjectReference Include="..\InventoryPredictor.Shared\InventoryPredictor.Shared.csproj" />
-	</ItemGroup>
 
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Maui" Version="8.2.2" />
@@ -55,9 +42,5 @@
 		<PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="8.0.86" />
 		<PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.0" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<MauiAsset Include="Resources\**" />
 	</ItemGroup>
 </Project>
