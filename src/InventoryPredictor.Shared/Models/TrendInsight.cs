@@ -1,4 +1,4 @@
-
+namespace InventoryPredictor.Shared.Models;
 public class TrendInsight
 {
     public string Icon { get; set; } = string.Empty;

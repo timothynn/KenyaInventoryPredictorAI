@@ -1,0 +1,50 @@
+// Create KQL tables for Kenya Inventory Predictor AI
+
+// Create sales_transactions table
+.create table sales_transactions (
+    transaction_id: string,
+    product_id: string,
+    product_code: string,
+    product_name: string,
+    quantity: real,
+    unit_price: real,
+    total_amount: real,
+    transaction_date: datetime,
+    location: string,
+    channel: string,
+    payment_method: string,
+    processing_timestamp: datetime
+)
+
+// Create inventory_levels table
+.create table inventory_levels (
+    product_id: string,
+    product_code: string,
+    product_name: string,
+    current_stock: real,
+    minimum_stock: real,
+    reorder_point: real,
+    location: string,
+    unit: string,
+    unit_price: real,
+    updated_at: datetime,
+    status: string
+)
+
+// Create stock_alerts table
+.create table stock_alerts (
+    alert_id: string,
+    product_id: string,
+    product_code: string,
+    product_name: string,
+    alert_type: string,
+    severity: string,
+    message: string,
+    created_at: datetime,
+    is_resolved: bool,
+    location: string
+)
+
+// Create update policy for automatic inventory updates
+.alter table inventory_levels policy update 
+@'[{"Source": "sales_transactions", "Query": "UpdateInventoryFromSales", "IsEnabled": true}]'

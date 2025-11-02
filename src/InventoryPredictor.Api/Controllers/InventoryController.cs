@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using InventoryPredictor.Api.Data;
 using InventoryPredictor.Api.Services;
 using InventoryPredictor.Shared.Models;
+using InventoryPredictor.Shared.DTOs;
 
 namespace InventoryPredictor.Api.Controllers;
 
@@ -437,7 +438,7 @@ public class InventoryController : ControllerBase
             >= 1.0m and < 1.5m => StockStatus.Optimal,
             >= 1.5m and < 2.0m => StockStatus.High,
             >= 2.0m => StockStatus.Overstocked,
-            _ => StockStatus.Optimal
+            _ => StockStatus.Optimal // Fallback for values not matching any previous pattern
         };
     }
 

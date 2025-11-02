@@ -1,0 +1,13 @@
+.create-or-alter function with (docstring='Updates inventory_levels from incoming sales_transactions', folder='inventory')
+UpdateInventoryFromSales()
+{
+    // NOTE: This is an example transformation. Adjust to your schema and semantics.
+    // Goal: For each product/location, subtract the sum of sold quantities from current_stock.
+    let sales = sales_transactions
+        | summarize total_sold = sum(toreal(quantity)) by product_id, location;
+    inventory_levels
+        | lookup kind=leftouter sales on product_id, location
+        | extend new_stock = toreal(coalesce(current_stock, 0.0)) - toreal(coalesce(total_sold, 0.0))
+        | extend current_stock = iif(isnull(new_stock), current_stock, new_stock)
+        | project-away total_sold, new_stock
+}

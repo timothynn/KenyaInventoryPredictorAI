@@ -1,0 +1,21 @@
+{
+  "ApiSettings": {
+    "BaseUrl": "https://localhost:7001/api/v1"
+  },
+  "Fabric": {
+    "EventhouseEndpoint": "YOUR_EVENTHOUSE_ENDPOINT",
+    "Database": "inventory_realtime_db",
+    "TenantId": "YOUR_TENANT_ID",
+    "ClientId": "YOUR_CLIENT_ID",
+    "ClientSecret": "YOUR_CLIENT_SECRET"
+  },
+  "EventHub": {
+    "ConnectionString": "YOUR_EVENT_HUB_CONNECTION_STRING",
+    "EventHubName": "sales-transactions"
+  },
+  "AzureAd": {
+    "Instance": "https://login.microsoftonline.com/",
+    "TenantId": "YOUR_TENANT_ID",
+    "ClientId": "YOUR_CLIENT_ID"
+  }
+}

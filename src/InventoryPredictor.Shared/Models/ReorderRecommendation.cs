@@ -1,4 +1,4 @@
-
+namespace InventoryPredictor.Shared.Models;
 public class ReorderRecommendation
 {
     public Guid ProductId { get; set; }

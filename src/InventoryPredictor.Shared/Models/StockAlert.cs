@@ -1,3 +1,4 @@
+namespace InventoryPredictor.Shared.Models;
 
 // Models/StockAlert.cs
 public class StockAlert
